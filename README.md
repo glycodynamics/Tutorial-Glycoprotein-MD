@@ -7,21 +7,81 @@ Anyone interested in learning  MD simulations for their research, in particular 
 Basic knowledge the Linux command line molecular dynamics theory.
 
 ### Abstract:
-The training workshop will introduce non-specialists to the use of MD simulations for modelling lycoproteins or protein/glycan cimplexes. Concepts and techniques of MD simulations will be explained through hands-on exercises. During the tutorial, each participant will perform MD simulation of sheep signalling glycoprotein (SPS-40) complex with 2-methyl-2-4-pentanediol. 
+The training workshop will introduce non-specialists to the use of MD simulations for modelling lycoproteins or protein/glycan cimplexes. Concepts and techniques of MD simulations will be explained through hands-on exercises. During the tutorial, each participant will perform MD simulation of sheep signalling glycoprotein (SPS-40) PDB ID: [2PI6](https://www.rcsb.org/structure/2PI6).
 
 ### Training Material
 The tutorial workshop consists of a series of scripts to run the simulations and analysis of the outputs, accompanied by an informal lecture. The scripts can be run using the CCBRC training server, fucose.
 
 Once you will login to fucose workstation open a Terminal (Click "New" top-right of the item list, and choose "Terminal" from the list). You will find the scripts and all other required workshop files there. Once you are finished, please copy all the data and "logout" from the server by pressing Ctrl +D.
 
-All material was prepared by Sushil Kumar Mishra.
+All material was prepared by Sushil K. Mishra.
 
 ### Contents
-In this tutorial workshop, you will learn how to apply combined quantum mechanics/molecular mechanics (QM/MM) methods to model a chemical reaction in an enzyme. You will calculate a free energy profile and a potential energy profile for the reaction, and analyse an important interaction in the active site.
+In this tutorial workshop, you will learn how to perform MD simulation to model a glycoprotein and proten/g;cyan complex. You will model glycans or grycoproteins in [Glycam-Web](http://glycam.org/) and perform MD sumlation using [Amber20](https://ambermd.org/) simulation software from the AmberTools package. 
 
-You will be using the simulation software from the AmberTools package. The sander programme is capable of the QM/MM simulations required. For efficiency, the semi-empirical QM method PM6 will be used throughout (implemented directly in sander). You can further use VMD to visualise the simulations on your local machine (after downloading the final files).
 
-You will be simulating the enzyme-catalysed reaction of chorismate to prephenate. This is an intramolecular reaction. The reaction proceeds via a cyclic transition state. A (geometric) reaction coordinate can be defined as the difference between the length of the C-O bond that is breaking, and the length of the C-C bond that is forming. Plotting the energy of the molecule as a function of this reaction coordinate returns a reaction energy profile.
+The sander and pmemd programmes are capable of the doing MD simulations required. 
+AAMBER can accelerate molecular dynamics simulations using GPUs from nVIDIA. You will use program pmemd.cuda to perform MD on Nvidia RTX3080 GPU cards installed in Fucose computer. You can further use VMD to visualise the simulations on your local machine (after downloading the final files).
 
-Acknowledgement: 
+You will be simulating SPS-40 glycoprotein. Follwo these teps to perform MD.
+
+#### 1.Login to Fucose: 
+Use account information provided during the hands-on session to login into fucose computer
+
+#### 1.Download PDB structure:
+Download PDB strucutre of the SPS-40 from the Protein Data Bank [2PI6] (https://www.rcsb.org/structure/2PI6). This structre contains protein, N-glcyan actanched to it, crystal waters and some hetro atoms. We only require coordinates of the protein atoms to create our system for MD simulation. Use grep to extract protein part and create a file protein.pdb. use following commands to do all these steps:
+```
+mkdir MD-GLYCOPROTEIN/01.PREP
+cd MD-GLYCOPROTEIN/01.PREP
+wget https://files.rcsb.org/download/2PI6.pdb
+grep "ATOM" 2PI6.pdb > protein.pdb
+
+```
+Copy protein.pdb file to your local computer by using scp (in Linux) or WinSCP (in windows). You can also perform all these steps mentioend above in your local computer.
+
+#### 2.Add N-Glcyan to protein structure:
+
+![image](https://user-images.githubusercontent.com/10772897/116744150-8a5b0280-a9bf-11eb-8be6-2aefd40aa756.png)
+
+— Open [Glycam-Web](http://glycam.org/)
+
+— Select  Glycoprotein Builder
+
+— Step 1: Choose file protein.pdb, then click continue.
+
+— Step 2: Change Disulfide Bonds, Histidine Protonation	and other options if needed. 
+
+— Step 3: To attach glycan, select the oligosaccharide library → High Mannose Oligosaccharides →  Select apropriate N-glycan
+
+— Step 4: Click on 'Add glycan to glycosylation sites'- selct residue number 39 N-linging section → Continue
+
+— Step 3: Click on Options; Choose Solvate Structures to Yes, Choose the shape of the solvent box: Rectangular/Cubic and Size of the solvent buffer: 11 Angstrom → Save and Continue
+
+— Step 3: Download current structure. It will take a couple of minutes to build requested structure.
+
+— Download glycam.tar.gz into your locam computer 
+
+— and copy glycam.tar.gz file to 01.PREP direcotry in fucose computer. 
+
+
+#### 3. Equilibration of the solvated glycoprotein system:
+
+```
+mkdir MD-GLYCOPROTEIN/01.PREP
+cd MD-GLYCOPROTEIN/01.PREP
+wget https://files.rcsb.org/download/2PI6.pdb
+grep "ATOM" 2PI6.pdb > protein.pdb
+
+```
+
+
+#### 3. Running MD:
+
+#### 4. Visualization of MD trajectory:
+
+
+
+
+
+### Acknowledgement: 
 Parts of the text has been adompted from CCPBioSim, qm/mm workshop. Source 
