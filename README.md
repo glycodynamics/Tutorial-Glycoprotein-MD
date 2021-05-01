@@ -154,21 +154,12 @@ Production run input file:
  ntp=1, pres0=1.0, taup=1.2,
  &end
 ```
-
-Running MD Simulation:
-```
-#!/bin/bash
-source /usr/local/amber20/amber.sh
-export CUDA_VISIBLE_DEVICES=0
-
-#run MD
-pmemd.cuda -O -i prod.in -p structure.parm7 -c equil10.rst7 -o prod01.out -r prod01.rst7 -x prod01.traj
-
-```
-
-
+The export CUDA_VISIBLE_DEVICES=0 line tells the computer to run on the GPU designated 0. You will likely have to change this to run on a GPU that is open on your computer. You can see which GPUs are open with this command:
 ```
 nvidia-smi 
+```
+Which will output this information.
+```
 Fri Apr 30 15:55:31 2021       
 +-----------------------------------------------------------------------------+
 | NVIDIA-SMI 455.23.04    Driver Version: 455.23.04    CUDA Version: 11.1     |
@@ -199,6 +190,64 @@ Fri Apr 30 15:55:31 2021
 +-----------------------------------------------------------------------------+
 
 ```
+On this computer, there are two RTX3080 GPUs (0, 1). Their respective availability is shown on the right (GUP-Util). Here, GPUs 0 is 95% utilized, hence unavailable, but GPU 1 is free. So, we want to tell the computer to run our job on GPU 1 by setting CUDA_VISIBLE_DEVICES variable as following:
+```
+export CUDA_VISIBLE_DEVICES=1
+```
+
+Running MD Simulation:
+
+```
+nohup ./run_MD.sh &
+```
+Below is the command to run MD in run_MD.sh file and meaning of these flags.
+
+```
+pmemd.cuda -O -i prod.in -p structure.parm7 -c equil10.rst7 -o prod01.out -r prod01.rst7 -x prod01.traj
+
+-O   Overwrite output files
+-i   MD input file (prod.in)
+-p   topology file (structure.prmtop)
+-c   the starting coordinate file (equil10.rst7)
+-o   output file (prod01.out), which is where all the thermodynamic information for the production run will be output.
+-r   restart file that output coordinates after each ntwr step of the simulation.
+-x   file with positions of all atoms over the course of a simulation saved in a trajectory file (prod01.nc)
+```
+
+
+This will make the job run on the open GPU 1. The last line is what runs the simulation using pmemd.cuda (the GPU version). The following flags are used:
+
+
+#### 4. Verify that your job is running:
+```
+nvidia-smi
+```
+You should see that the percentage of the GPU you specified increased to a percentage near 100%. You can also see information on your job by using the "top" command:
+```
+top
+```
+This will show you the PID (first column), who is running the job (second column), and what kind of job it is (last column), which should be pmemd.cuda for you. The "top" screen will be automatically updated in real time. To exit back to the command line, type the "q" key on your keyboard.
+
+If you need to kill your job for some reason (like you ran it on a busy GPU), then you can kill the job by typing:
+```
+kill -9 PID
+```
+If you don't know which PID corresponds to which job you need to kill, you can get the path of the directory that the job was ran in by using this command:
+```
+pwdx PID
+```
+Note that you should only run one MD job in a directory at a time. Otherwise, things could get messy and you might overwrite some files.
+
+#### 5. Monitor the progess of MD.
+Running the script will make a file called "mdinfo". This is where you get information on how many steps have been completed, how many nanoseconds you can run per day with this system, and how much time is left before your specific job is finished.
+
+Running this script will also make a file called "nohup.out." This is where all of the errors are output. So, if you run a script and the job dies right away, you can check nohup.out for information on the error that occurred. Usually these are syntax errors. With every nohup job that is run, nohup.out is written to with any errors for that job.
+
+Wait for the job to finish. It should take around 30 minutes hours (see mdinfo). 
+
+
+
+
 #### 4. Visualization of MD trajectory:
 — Download and Install VMD in your local computer [VMD](https://www.ks.uiuc.edu/Development/Download/download.cgi?PackageName=VMD)
 — 
