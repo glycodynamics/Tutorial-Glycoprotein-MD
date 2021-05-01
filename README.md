@@ -4,7 +4,7 @@
 Anyone interested in learning  MD simulations for their research, in particular for studying glycoproteins or protein/glycan cimplexes.
 
 ### Requirements:
-Basic knowledge the Linux command line molecular dynamics theory.
+Basic knowledge the Linux command line and basics of theory behind molecular dynamics simulations.
 
 ### Abstract:
 The training workshop will introduce non-specialists to the use of MD simulations for modelling lycoproteins or protein/glycan cimplexes. Concepts and techniques of MD simulations will be explained through hands-on exercises. During the tutorial, each participant will perform MD simulation of sheep signalling glycoprotein (SPS-40) PDB ID: [2PI6](https://www.rcsb.org/structure/2PI6).
@@ -240,23 +240,72 @@ Note that you should only run one MD job in a directory at a time. Otherwise, th
 
 #### 5. Monitor the progess of MD.
 Running the script will make a file called "mdinfo". This is where you get information on how many steps have been completed, how many nanoseconds you can run per day with this system, and how much time is left before your specific job is finished.
+```
+ NSTEP =    85000   TIME(PS) =    3060.000  TEMP(K) =   301.27  PRESS =   223.6
+ Etot   =   -116937.4902  EKtot   =     30819.1191  EPtot      =   -147756.6094
+ BOND   =      1753.2873  ANGLE   =      2992.6234  DIHED      =      4584.2756
+ 1-4 NB =      2802.0438  1-4 EEL =     14983.5433  VDWAALS    =     17397.1077
+ EELEC  =   -192269.4905  EHBOND  =         0.0000  RESTRAINT  =         0.0000
+ EKCMT  =     13291.6373  VIRIAL  =     10885.8482  VOLUME     =    498424.5945
+                                                    Density    =         1.0230
+ ------------------------------------------------------------------------------
+| Current Timing Info
+| -------------------
+| Total steps:    500000 | Completed:     85000 ( 17.0%) | Remaining:    415000
+|
+| Average timings for last   80000 steps:
+|     Elapsed(s) =      63.52 Per Step(ms) =       0.79
+|         ns/day =     217.64   seconds/ns =     396.98
+|
+| Average timings for all steps:
+|     Elapsed(s) =      67.42 Per Step(ms) =       0.79
+|         ns/day =     217.84   seconds/ns =     396.62
+|
+|
+| Estimated time remaining:       5.5 minutes.
+ ------------------------------------------------------------------------------
+```
 
 Running this script will also make a file called "nohup.out." This is where all of the errors are output. So, if you run a script and the job dies right away, you can check nohup.out for information on the error that occurred. Usually these are syntax errors. With every nohup job that is run, nohup.out is written to with any errors for that job.
+```
+[sushil@idose 03.PROD]$ cat nohup.out 
+Note: The following floating-point exceptions are signalling: IEEE_UNDERFLOW_FLAG IEEE_DENORMAL
+```
+Only warning is expected, and should not themselves be of concern. Underflows of "IEEE_UNDERFLOW_FLAG IEEE_DENORMAL" is the result of an expression exceeds the precision of the variable being assigned the value. The underflow error is typically inconsequential and should have no impact on the results of the simulation. It can be ignored if pmemd.cuda tests did not show anything of concern shows up about the GPUs
 
-Wait for the job to finish. It should take around 30 minutes hours (see mdinfo). 
 
+Wait for the job to finish. It should take around 30 minutes hours (see mdinfo file to findout how much time it needs to complete). 
 
+#### 6. Postprocess and analyze the trajectory:
 
+Run cpptraj to postprocess trajecotry file (prod01.traj).
 
-#### 4. Visualization of MD trajectory:
+Now copy all the data back to you local machine using ssh (following) or WInSCP. If you have a Mac or Linux, open terminal and run following command to coy the data from source (guestXX@fucose.pharmacy.olemiss.edu:~/*) to your desktop.
+```
+scp -r guestXX@fucose.pharmacy.olemiss.edu:~/* ~/Desktop/
+
+```
+
+#### 7. Visualization of MD trajectory:
 — Download and Install VMD in your local computer [VMD](https://www.ks.uiuc.edu/Development/Download/download.cgi?PackageName=VMD)
-— 
-—
+— Download Sumbol Nomenclature For Glycan (SNFG) representation for glycans [SNFG](http://glycam.org/docs/othertoolsservice/2016/06/03/3d-symbol-nomenclature-for-glycans-3d-snfg/)
+— Load a file containing a glycan into VMD 
 —
 —
 —
 —
 
+##### SNFG Visualization:
+
+On your keyboard, use the following shortcut keys:
+
+‘i’ – apply the SNFG-Icons representation
+
+‘g’ – apply the 3D-SNFG representation
+
+‘b’ – apply the 3D-SNFG representation and label the reducing terminus
+
+‘d’ – delete the drawn objects
 
 
 
@@ -269,3 +318,6 @@ Wait for the job to finish. It should take around 30 minutes hours (see mdinfo).
 
 ### Acknowledgement: 
 Parts of the text has been adompted from CCPBioSim, qm/mm workshop. Source 
+Thieker, D. F., Hadden, J. A., Schulten, K., & Woods, R. J. (2016). 3D implementation of the Symbol Nomenclature for Graphical Representation of Glycans. Glycobiology, 26(8), 786-787. DOI:10.1093/glycob/cww076)
+
+
