@@ -1,5 +1,7 @@
 # Molecular Dynamics of Glycoprotein
-
+      Sushil Mishra, 04/25/2021
+      Last updated on 05/04/2021
+      ** Version 1.0**
 ## Aimed at:
 Anyone interested in learning  MD simulations for their research, in particular for studying glycoproteins or protein/glycan cimplexes.
 
@@ -308,6 +310,28 @@ On your keyboard, use the following shortcut keys:
 ‘d’ – delete the drawn objects
 
 
+
+
+### List of software
+
+[Amber/AmberTools](https://ambermd.org/)
+
+[Glycam-web](http://glycam.org/)
+
+[VMD](http://www.ks.uiuc.edu/Research/vmd/)
+
+[PyMOL](https://github.com/schrodinger/pymol-open-source)
+
+[NAMD](http://www.ks.uiuc.edu/Research/namd/)
+
+
+
+### Other useful tutorials:
+[VMD: Images for Publication](https://www.youtube.com/watch?v=ip7lmmD7Z2k)
+
+[Chimera MD Tutorial](https://www.cgl.ucsf.edu/chimera/docs/ContributedSoftware/md/md.html)
+
+[Amber Tutorial](https://ambermd.org/tutorials/)
 
 
 
