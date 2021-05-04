@@ -3,7 +3,7 @@
       Last updated on 05/04/2021
       ** Version 1.0**
 ## Aimed at:
-Anyone interested in learning  MD simulations for their research, in particular for studying glycoproteins or protein/glycan cimplexes.
+Anyone interested in learning  MD simulations for their research, in particular for studying glycoproteins or protein/glycan complexes.
 
 ### Requirements:
 Basic knowledge the Linux command line and basics of theory behind molecular dynamics simulations.
