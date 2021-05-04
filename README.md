@@ -14,24 +14,21 @@ The training workshop will introduce non-specialists to the use of MD simulation
 ### Training Material
 The tutorial workshop consists of a series of scripts to run the simulations and analysis of the outputs, accompanied by an informal lecture. The scripts can be run using the CCBRC training server, fucose.
 
-Once you will login to fucose workstation open a Terminal (Click "New" top-right of the item list, and choose "Terminal" from the list). You will find the scripts and all other required workshop files there. Once you are finished, please copy all the data and "logout" from the server by pressing Ctrl +D.
-
-All material was prepared by Sushil K. Mishra.
+Once you are logged in to the fucose workstation, open a Terminal (Click "New" top-right of the item list, and choose "Terminal" from the list). You will find the scripts and all other required workshop files there. Once you are finished, please copy all the data and "log out" from the server by pressing Ctrl +D.
 
 ### Contents
-In this tutorial workshop, you will learn how to perform MD simulation to model a glycoprotein and proten/g;cyan complex. You will model glycans or grycoproteins in [Glycam-Web](http://glycam.org/) and perform MD sumlation using [Amber20](https://ambermd.org/) simulation software from the AmberTools package. 
+In this tutorial workshop, you will learn how to perform MD simulation to model a glycoprotein and protein/glycan complex. You will model glycans or glycoproteins in [Glycam-Web](http://glycam.org/) and perform MD simulation using [Amber20](https://ambermd.org/) simulation software from the AmberTools package. 
 
+The sander and pmemd programs are capable of doing MD simulations required. AMBER can accelerate molecular dynamics simulations using GPUs from NVIDIA. You will use the program pmemd.cuda to perform MD on Nvidia RTX3080 GPU cards installed in the Fucose computer. You can further use VMD to visualize the simulations on your local machine (after downloading the final files).
 
-The sander and pmemd programmes are capable of the doing MD simulations required. 
-AAMBER can accelerate molecular dynamics simulations using GPUs from nVIDIA. You will use program pmemd.cuda to perform MD on Nvidia RTX3080 GPU cards installed in Fucose computer. You can further use VMD to visualise the simulations on your local machine (after downloading the final files).
-
-You will be simulating SPS-40 glycoprotein. Follwo these teps to perform MD.
+You will be simulating SPS-40 glycoprotein. Follow these steps to perform MD.
 
 #### 1.Login to Fucose: 
-Use account information provided during the hands-on session to login into fucose computer
+Use account information provided during the hands-on session to login into fucose computer.
 
 #### 1.Download PDB structure:
-Download PDB strucutre of the SPS-40 from the Protein Data Bank [2PI6] (https://www.rcsb.org/structure/2PI6). This structre contains protein, N-glcyan actanched to it, crystal waters and some hetro atoms. We only require coordinates of the protein atoms to create our system for MD simulation. Use grep to extract protein part and create a file protein.pdb. use following commands to do all these steps:
+Download PDB structure of the SPS-40 from the Protein Data Bank [2PI6] (https://www.rcsb.org/structure/2PI6). This structure contains protein, N-glycan attached to it, crystal waters, and some heteroatoms. We only require coordinates of the protein atoms to create our system for MD simulation. Use grep to extract the protein part and create a file protein.pdb. Use the following commands to do all these steps:
+
 ```
 mkdir MD-GLYCOPROTEIN/01.PREP
 cd MD-GLYCOPROTEIN/01.PREP
@@ -39,7 +36,7 @@ wget https://files.rcsb.org/download/2PI6.pdb
 grep "ATOM" 2PI6.pdb > protein.pdb
 
 ```
-Copy protein.pdb file to your local computer by using scp (in Linux) or WinSCP (in windows). You can also perform all these steps mentioend above in your local computer.
+Copy protein.pdb file to your local computer by using SCP (in Linux) or WinSCP (in windows). You can also perform all these steps mentioned above on your local computer.
 
 #### 2.Add N-Glcyan to protein structure:
 
@@ -51,20 +48,19 @@ Copy protein.pdb file to your local computer by using scp (in Linux) or WinSCP (
 
 — Step 1: Choose file protein.pdb, then click continue.
 
-— Step 2: Change Disulfide Bonds, Histidine Protonation	and other options if needed. 
+— Step 2: Change Disulfide Bonds, Histidine Protonation, and other options if needed. 
 
-— Step 3: To attach glycan, select the oligosaccharide library → High Mannose Oligosaccharides →  Select apropriate N-glycan
+— Step 3: To attach glycan, select the oligosaccharide library → High Mannose Oligosaccharides →  Select appropriate N-glycan
 
-— Step 4: Click on 'Add glycan to glycosylation sites'- selct residue number 39 N-linging section → Continue
+— Step 4: Click on 'Add glycan to glycosylation sites'- select residue number 39 N-linking section → Continue
 
 — Step 3: Click on Options; Choose Solvate Structures to Yes, Choose the shape of the solvent box: Rectangular/Cubic and Size of the solvent buffer: 11 Angstrom → Save and Continue
 
-— Step 3: Download current structure. It will take a couple of minutes to build requested structure.
+— Step 3: Download current structure. It will take a couple of minutes to build the requested structure.
 
-— Download glycam.tar.gz into your locam computer 
+— Download glycam.tar.gz into your local computer 
 
-— and copy glycam.tar.gz file to 01.PREP direcotry in fucose computer. 
-
+— and copy glycam.tar.gz file to 01.PREP directory in fucose computer. 
 
 #### 3. Equilibration of the solvated glycoprotein system:
 
@@ -209,7 +205,7 @@ pmemd.cuda -O -i prod.in -p structure.parm7 -c equil10.rst7 -o prod01.out -r pro
 
 -O   Overwrite output files
 -i   MD input file (prod.in)
--p   topology file (structure.prmtop)
+-p   topology file (structure.parm7)
 -c   the starting coordinate file (equil10.rst7)
 -o   output file (prod01.out), which is where all the thermodynamic information for the production run will be output.
 -r   restart file that output coordinates after each ntwr step of the simulation.
@@ -228,13 +224,13 @@ You should see that the percentage of the GPU you specified increased to a perce
 ```
 top
 ```
-This will show you the PID (first column), who is running the job (second column), and what kind of job it is (last column), which should be pmemd.cuda for you. The "top" screen will be automatically updated in real time. To exit back to the command line, type the "q" key on your keyboard.
+This will show you the PID (first column), who is running the job (second column), and what kind of job it is (last column), which should be pmemd.cuda for you. The "top" screen will be automatically updated in real-time. To exit back to the command line, type the "q" key on your keyboard.
 
 If you need to kill your job for some reason (like you ran it on a busy GPU), then you can kill the job by typing:
 ```
 kill -9 PID
 ```
-If you don't know which PID corresponds to which job you need to kill, you can get the path of the directory that the job was ran in by using this command:
+If you don't know which PID corresponds to which job you need to kill, you can get the path of the directory that the job was run in by using this command:
 ```
 pwdx PID
 ```
@@ -268,21 +264,22 @@ Running the script will make a file called "mdinfo". This is where you get infor
  ------------------------------------------------------------------------------
 ```
 
-Running this script will also make a file called "nohup.out." This is where all of the errors are output. So, if you run a script and the job dies right away, you can check nohup.out for information on the error that occurred. Usually these are syntax errors. With every nohup job that is run, nohup.out is written to with any errors for that job.
+Running this script will also make a file called "nohup.out." This is where all of the errors are output. So, if you run a script and the job dies right away, you can check nohup.out for information on the error that occurred. Usually, these are syntax errors. With every nohup job that is run, nohup.out is written to with any errors for that job.
+
 ```
 [sushil@idose 03.PROD]$ cat nohup.out 
 Note: The following floating-point exceptions are signalling: IEEE_UNDERFLOW_FLAG IEEE_DENORMAL
 ```
-Only warning is expected, and should not themselves be of concern. Underflows of "IEEE_UNDERFLOW_FLAG IEEE_DENORMAL" is the result of an expression exceeds the precision of the variable being assigned the value. The underflow error is typically inconsequential and should have no impact on the results of the simulation. It can be ignored if pmemd.cuda tests did not show anything of concern shows up about the GPUs
 
+The only warning is expected, and should not themselves be of concern. Underflows of "IEEE_UNDERFLOW_FLAG IEEE_DENORMAL" is the result of an expression that exceeds the precision of the variable being assigned the value. The underflow error is typically inconsequential and should have no impact on the results of the simulation. It can be ignored if pmemd.cuda tests did not show anything of concern shows up about the GPUs
 
-Wait for the job to finish. It should take around 30 minutes hours (see mdinfo file to findout how much time it needs to complete). 
+Wait for the job to finish. It should take around 30 minutes hours (see mdinfo file to find out how much time it needs to complete). 
 
 #### 6. Postprocess and analyze the trajectory:
 
 Run cpptraj to postprocess trajecotry file (prod01.traj).
 
-Now copy all the data back to you local machine using ssh (following) or WInSCP. If you have a Mac or Linux, open terminal and run following command to coy the data from source (guestXX@fucose.pharmacy.olemiss.edu:~/*) to your desktop.
+Now copy all the data back to your local machine using ssh (following) or WinSCP. If you have a Mac or Linux, open the terminal and run the following command to copy the data from the source (guestXX@fucose.pharmacy.olemiss.edu:~/*) to your desktop.
 ```
 scp -r guestXX@fucose.pharmacy.olemiss.edu:~/* ~/Desktop/
 
@@ -290,11 +287,15 @@ scp -r guestXX@fucose.pharmacy.olemiss.edu:~/* ~/Desktop/
 
 #### 7. Visualization of MD trajectory:
 — Download and Install VMD in your local computer [VMD](https://www.ks.uiuc.edu/Development/Download/download.cgi?PackageName=VMD)
-— Download Sumbol Nomenclature For Glycan (SNFG) representation for glycans [SNFG](http://glycam.org/docs/othertoolsservice/2016/06/03/3d-symbol-nomenclature-for-glycans-3d-snfg/)
+— Download Symbol Nomenclature For Glycan (SNFG) representation for glycans [SNFG](http://glycam.org/docs/othertoolsservice/2016/06/03/3d-symbol-nomenclature-for-glycans-3d-snfg/)
 — Load a file containing a glycan into VMD 
+
 —
+
 —
+
 —
+
 —
 
 ##### SNFG Visualization:
@@ -341,7 +342,9 @@ On your keyboard, use the following shortcut keys:
 
 
 ### Acknowledgement: 
-Parts of the text has been adompted from CCPBioSim, qm/mm workshop. Source 
+Parts of the text have been adopted from CCPBioSim, QM/mm workshop. Source 
 Thieker, D. F., Hadden, J. A., Schulten, K., & Woods, R. J. (2016). 3D implementation of the Symbol Nomenclature for Graphical Representation of Glycans. Glycobiology, 26(8), 786-787. DOI:10.1093/glycob/cww076)
+
+3D implementation of the Symbol Nomenclature for Graphical Representation of Glycans. Glycobiology, 26(8), 786-787. DOI:10.1093/glycob/cww076)
 
 
