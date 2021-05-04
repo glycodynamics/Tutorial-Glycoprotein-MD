@@ -6,10 +6,10 @@
 Anyone interested in learning  MD simulations for their research, in particular for studying glycoproteins or protein/glycan complexes.
 
 ### Requirements:
-Basic knowledge the Linux command line and basics of theory behind molecular dynamics simulations.
+Basic knowledge of the Linux command line and basics of the theory behind molecular dynamics simulations.
 
 ### Abstract:
-The training workshop will introduce non-specialists to the use of MD simulations for modelling lycoproteins or protein/glycan cimplexes. Concepts and techniques of MD simulations will be explained through hands-on exercises. During the tutorial, each participant will perform MD simulation of sheep signalling glycoprotein (SPS-40) PDB ID: [2PI6](https://www.rcsb.org/structure/2PI6).
+The training workshop will introduce non-specialists to the use of MD simulations for modeling glycoproteins or protein/glycan complexes. Concepts and techniques of MD simulations will be explained through hands-on exercises. During the tutorial, each participant will perform an MD simulation of sheep signaling glycoprotein (SPS-40) PDB ID: [2PI6](https://www.rcsb.org/structure/2PI6).
 
 ### Training Material
 The tutorial workshop consists of a series of scripts to run the simulations and analysis of the outputs, accompanied by an informal lecture. The scripts can be run using the CCBRC training server, fucose.
