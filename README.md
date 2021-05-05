@@ -62,7 +62,7 @@ ssh -X guestXX@fucose.pharmacy.olemiss.edu
 ```
 Use the login credentials provided to you. Once conected go to ~/MD-GLYCOPROTEIN/01.PREP direcotry, unzip glycam.tar.gz archive and copy structure.parm7 & structure.parm7 files to ~/MD-GLYCOPROTEIN/02.EQUIL directory. These two files are needed to run MD simulation. Use following commands to do these tasks.
 ```
-cd ~/MD-GLYCOPROTEIN/01.PREP
+cd ~/tutorial/01.PREP
 tar -xvf glycam.tar.gz
 cp structure.parm7 ../02.EQUIL/
 cp structure.rst7 ../02.EQUIL/
