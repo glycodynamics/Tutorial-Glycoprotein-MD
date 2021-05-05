@@ -1,4 +1,4 @@
-# Molecular Dynamics of Glycoprotein
+# Molecular Dynamics of Glycoproteins
       Sushil Mishra, 04/25/2021
       Last updated on 05/04/2021
       ** Version 1.0**
@@ -27,16 +27,7 @@ You will be simulating SPS-40 glycoprotein. Follow these steps to perform MD.
 Use account information provided during the hands-on session to login into fucose computer.
 
 #### 1.Download PDB structure:
-Download PDB structure of the SPS-40 from the Protein Data Bank [2PI6] (https://www.rcsb.org/structure/2PI6). This structure contains protein, N-glycan attached to it, crystal waters, and some heteroatoms. We only require coordinates of the protein atoms to create our system for MD simulation. Use grep to extract the protein part and create a file protein.pdb. Use the following commands to do all these steps:
-
-```
-mkdir MD-GLYCOPROTEIN/01.PREP
-cd MD-GLYCOPROTEIN/01.PREP
-wget https://files.rcsb.org/download/2PI6.pdb
-grep "ATOM" 2PI6.pdb > protein.pdb
-
-```
-Copy protein.pdb file to your local computer by using SCP (in Linux) or WinSCP (in windows). You can also perform all these steps mentioned above on your local computer.
+Download PDB structure of the SPS-40 from the Protein Data Bank [2PI6] (https://www.rcsb.org/structure/2PI6). This structure contains protein, N-glycan attached to it, crystal waters, and some heteroatoms. We only require coordinates of the protein atoms to create our system for MD simulation. You can use grep to extract the protein part and create a file protein.pdb. However, Glycam-web can read pdb file and it will remove all the heetero atoms itself. 
 
 #### 2.Add N-Glcyan to protein structure:
 
@@ -46,7 +37,7 @@ Copy protein.pdb file to your local computer by using SCP (in Linux) or WinSCP (
 
 — Select  Glycoprotein Builder
 
-— Step 1: Choose file protein.pdb, then click continue.
+— Step 1: Choose file 2pi6.pdb, then click continue.
 
 — Step 2: Change Disulfide Bonds, Histidine Protonation, and other options if needed. 
 
@@ -58,22 +49,40 @@ Copy protein.pdb file to your local computer by using SCP (in Linux) or WinSCP (
 
 — Step 3: Download current structure. It will take a couple of minutes to build the requested structure.
 
-— Download glycam.tar.gz into your local computer 
+— Download glycam.tar.gz into your local computer. 
 
-— and copy glycam.tar.gz file to 01.PREP directory in fucose computer. 
+— Unzip glycam.tar.gz into your local computer and visualize structure_AMBER.pdb file in VMD or PyMOL. Make sure glycan is attached to apropriate Asn and there is no bonds missing.  
+
+— Finally you can copy glycam.tar.gz file to ~/tutorial/01.PREP directory in fucose computer. For your convenience, this file has been already copied to this directory.
 
 #### 3. Equilibration of the solvated glycoprotein system:
-
+Connect to focuse compuer:
 ```
-cd MD-GLYCOPROTEIN/01.PREP
+ssh -X guestXX@fucose.pharmacy.olemiss.edu
+```
+Use the login credentials provided to you. Once conected go to ~/MD-GLYCOPROTEIN/01.PREP direcotry, unzip glycam.tar.gz archive and copy structure.parm7 & structure.parm7 files to ~/MD-GLYCOPROTEIN/02.EQUIL directory. These two files are needed to run MD simulation. Use following commands to do these tasks.
+```
+cd ~/MD-GLYCOPROTEIN/01.PREP
 tar -xvf glycam.tar.gz
 cp structure.parm7 ../02.EQUIL/
 cp structure.rst7 ../02.EQUIL/
 cd ../02.EQUIL/
 ```
+Now you are inside the equilibration directory that contains the following files:
+```
+equil01 equil03 equil05 equil07 equil09 run-eq-CGpu.sh  structure.rst7
+equil02 equil04 equil06 equil08 equil10 structure.parm7
+```
+directories equil01 to equil10 contain input files for a 10 step MD equilibration protocol. File run-eq-CGpu.sh has commands to run these 10 steps.
+If your guest ID is an even number, use   CUDA_VISIBLE_DEVICES=0 and if it is an odd number use CUDA_VISIBLE_DEVICES=0
+Running equilibration: 
 
-Running equilibration:
-
+```
+export CUDA_VISIBLE_DEVICES=0
+module load amber/20
+./eq-CGpu.sh &
+```
+This calculation may take 20-30 minutes. Therefore try to understand the content of eq-CGpu.sh (see described below) in the mean-time: 
 ```
 export pmemd_bin="mpirun -np 12 pmemd.MPI"
 export amber_bin=pmemd.cuda
@@ -127,14 +136,14 @@ $amber_bin -O  -i equil10.in -p ../$PEQUI_TOP -c ../equil09/equil09.rst7 -o equi
 
 ```
 
+Once the equilibration is completed, chnage directory to 03.PROD:
 ```
-module load amber/20
-./eq-CGpu.sh &
-
+cd ../03.PROD
 ```
 
 
 #### 3. Running MD:
+Now we will use the last frame from the equilibration to start the MD simulation. This equilibrated structure file is inside equil10 and named "equil10.rst7". This file will be used as starting frame of MD simulation. For the the purpose of this tutorial, we will be runing a short 1 nanosecond MD simulation at NPT. 
 
 Production run input file:
 ```
@@ -287,16 +296,22 @@ scp -r guestXX@fucose.pharmacy.olemiss.edu:~/* ~/Desktop/
 
 #### 7. Visualization of MD trajectory:
 — Download and Install VMD in your local computer [VMD](https://www.ks.uiuc.edu/Development/Download/download.cgi?PackageName=VMD)
+
 — Download Symbol Nomenclature For Glycan (SNFG) representation for glycans [SNFG](http://glycam.org/docs/othertoolsservice/2016/06/03/3d-symbol-nomenclature-for-glycans-3d-snfg/)
-— Load a file containing a glycan into VMD 
 
-—
+— Move the file to either your home directory, or the location where the VMD software is installed, and unzip the file.
 
-—
+— Now, open VMD
 
-—
+— Load a file containing a glycan into VMD (structure.parm7)
 
-—
+— Load trajectory file (prod01.traj) by selecting "Amber trajecotry file with periodic box)
+
+— Go to graphics > representation > and change the representation of molecule as you wish to.
+
+— Play MD and visualize trajectory
+
+— Ask for help and an instructure can help you in doing all this in VMD.
 
 ##### SNFG Visualization:
 
@@ -309,7 +324,6 @@ On your keyboard, use the following shortcut keys:
 ‘b’ – apply the 3D-SNFG representation and label the reducing terminus
 
 ‘d’ – delete the drawn objects
-
 
 
 
@@ -336,15 +350,7 @@ On your keyboard, use the following shortcut keys:
 
 
 
-
-
-
-
-
 ### Acknowledgement: 
-Parts of the text have been adopted from CCPBioSim, QM/mm workshop. Source 
-Thieker, D. F., Hadden, J. A., Schulten, K., & Woods, R. J. (2016). 3D implementation of the Symbol Nomenclature for Graphical Representation of Glycans. Glycobiology, 26(8), 786-787. DOI:10.1093/glycob/cww076)
-
 3D implementation of the Symbol Nomenclature for Graphical Representation of Glycans. Glycobiology, 26(8), 786-787. DOI:10.1093/glycob/cww076)
 
 
