@@ -1,0 +1,16 @@
+#!/bin/bash
+module load amber/20
+mkdir -p analysis
+cd analysis
+cpptraj <<EOF  
+        parm ../structure.parm7
+        trajin ../prod*.traj
+        autoimage
+        center @N mass origin
+        image familiar origin center
+	rms ToFirst1 :1-361&!@H= first out rmsd-nh.dat mass
+        rms ToFirst2 :362-366&!@H= first out rmsd-nh-glcyan.dat mass
+        rms ToFirst3 :1-361@CA,C,O,N first out rmsd-bb.dat mass
+        trajout ./prod-imaged.traj
+        go
+EOF

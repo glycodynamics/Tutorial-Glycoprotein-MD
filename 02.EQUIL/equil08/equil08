@@ -1,0 +1,7 @@
+#!/bin/bash
+
+sed -e "s/NSOLRES/$NUM_OF_SOLUTE_RESIDUES/g" < relax08.tin > relax08.in || exit 1
+
+pmemd.cuda -O -i relax08.in -p ../$PEQUI_TOP -c ../relax07/relax07.rst7 -ref ../relax07/relax07.rst7 -o relax08.out -r relax08.rst7 -x relax08.btraj
+
+

@@ -1,0 +1,1114 @@
+#!/bin/bash
+
+# 2011-03, Sushil Kumar Mishra, NCBR, Masaryk University, Czech Republic
+# sushil@chemi.muni.cz
+# Description: 
+#
+#
+
+[ -z "$MES_PREFIX" ] && { MES_PREFIX=${0%/*}; export MES_PREFIX; }
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~ Initial variable assignments ~~~~~~~~~~~~~~~~~~~~~~~
+
+mes_help=false    # activate help
+
+MES_VERBOSITY=0    # default verbosity level
+# a quick hack to have verbose messaging right from the start
+[[ $@ =~ -v" " ]] && MES_VERBOSITY=1
+[[ $@ =~ -vv" " ]] && MES_VERBOSITY=2
+
+MES_LIBS=( MES_Basic_functions.bash
+           )    # required MES libraries, script library dependencies, just filenames no path
+
+mes_retval=0    # global return value
+mes_plot_info=()    # information about processed files more in Mes_Plot_Examine_File
+mes_plot_mode=121    # file and column processing mode
+mes_plot_merge=false    # merge all data columns into a single plot
+mes_plot_unify=false    # sort -k1,1 and unify
+mes_plot_step=1    # plot each step value
+mes_plot_digits=""    # format the time with digits format
+mes_plot_script=false    # output a gnuplot script
+mes_plot_x_col=1    # x coordinate column
+mes_plot_d_col=""    # data coordinate columns
+
+mes_plot_md_cols="Time(ps) Temp Press Etot Ektot Eptot Bond Angle Dihed VdW14 Eel14 WdWaals Eelec Restraint Volume Density dVdl Sgft"
+mes_plot_min_cols="Nstep Energy RMS Gmax Bond Angle Dihed WdWaals Eelec Hbond VdW14 Eel14 Restraint"
+
+mes_plot_bn=""    # basename for output files
+
+tmp=""    # temporary data
+file=""    # file
+mes_plot_fid=""    # file id
+
+
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~ Sourcing Functions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#
+# source MES libraries
+#
+if [ -n "$MES_LIBS" ]; then
+  #
+  # test if the library is located in an existing ME-scripts installation
+  #
+  if [ -f "${MES_PREFIX%/bin}/lib/mescripts/$MES_LIBS" ]; then
+
+    MES_PREFIX=${MES_PREFIX%/bin}
+
+    [ $MES_VERBOSITY -ge 2 ] && echo "Sourcing MES library functions in '$MES_PREFIX/lib/mescripts'."
+    for tmp in ${MES_LIBS[@]/#/$MES_PREFIX\/lib\/mescripts\/}; do
+      source $tmp
+    done
+
+  #
+  # the library may be located in the same place as the script is
+  #+this is a the case when the script is in the task_scripts directory
+  #+the MES_PREFIX variable remains misconfigured
+  #
+  elif [ -f "$MES_PREFIX/$MES_LIBS" ]; then
+
+    [ $MES_VERBOSITY -ge 2 ] && echo "Sourcing MES library functions in '$MES_PREFIX'."
+    for tmp in ${MES_LIBS[@]/#/$MES_PREFIX\/}; do
+      source $tmp
+    done
+
+  else
+    echo "ERRR: MES libraries cannot be located. The MES_PREFIX variable is misconfigured: '$MES_PREFIX'. Library files must be either in the standard location 'MES_PREFIX/lib/mescripts' or in the same directory with the script you are executing." 1>&2
+    exit 1
+  fi
+fi
+
+
+Mes_Help() {
+  # description: Function should provide a detailed description of function and usage, prerequisites and necessary arguments.
+  # arguments: none
+  # return values: 0 always
+
+  fmt -w80 << EOF | more
+
+--- mes-plot   bash script
+
+Description:
+        Script extracts Sander/PMEMD output files into data files and plots them using 'gnuplot'.
+        The data files and postscript files
+        are named after the topology file used in the run, by default.
+        The extracted data files can be used for plotting by xmgrace later.
+        Script also is capable of plotting generic data files, e.g. from 'ptraj'.
+        Basenames of these data files are reused by default.
+        All input files be plain text or 'gzip', 'bzip2' compressed.
+        Output from 'gnuplot' is displayed at the verbosity level 2.
+
+
+Usage:  mes-plot  [OPTION]  FILES
+
+        -h,
+        --help
+                Display help.
+        -v
+                Set verbosity to 1.
+        -vv
+                Set verbosity to 2. Gnuplot output.
+        --verbosity N
+                Set verbosity to N. Use '0-2'. '0' is the default.
+        
+        Plotting:
+
+        --121
+                Use one 'ps' file for one input file.
+        --a21
+                Use one 'ps' file for all input files.
+        -m,
+        --merge
+                Data files only: plot all data columns in one graph.
+
+        -x,
+        --x-col  N[=label]
+                Data files only: x data column. '1' by default.
+                No spaces in the label.
+        -d,
+        --data,
+        --d-col  "N[=label] M[=label]"
+                Data files only: data columns. The rest of the columns by default.
+                No spaces in the labels.
+
+        --script
+                Output the gnuplot script used for plotting the data.
+
+        Data extraction:
+
+        --step  N
+                Positive integer to plot only each Nth entry in the data file,
+                '1' by default.
+        --digits  N
+                Number of digits to format the time information in the filename.
+                The number of digits of the ending time by default.
+        --unify
+                Sort the entries using the first column values and
+                exclude duplicate lines with identical first column values.
+                This option moves comments in the data file below the numbers.
+
+        Files:
+
+        --bf,
+        --bn-fn
+                Use a basename derived from the filename of the FILE being processed
+                after removing all its filename extensions. Default.
+        --pn,
+        --bn-pn
+                Sander output: Use a basename from the topology file used.
+        --bn  STRING
+                A common basename for all future data files and 'ps' files.
+        FILES
+                'Sander' or 'PMEMD' output files or 'ptraj' data files.
+                Data files have to be columns of numbers with comments starting with '#'.
+
+
+EOF
+  exit 0
+}
+
+
+
+
+Mes_Plot_Examine_File() {
+  # description: examine the file provided and output data extracted from headers
+  # arguments:  FILENAME
+  # return values:
+  local fn=Mes_Plot_Examine_File    # function name
+
+  # argument checks
+  [ $# -eq 0 ] && Mes_Errr "Input files names."
+
+  # local variables
+  local code=0    # return value
+  local h    # file header, first 250 lines
+  local ntt    # temprature regulation scheme
+
+  Mes_Msg_Gag --on
+  trap 'code=$(($code + $?))' ERR
+  #trap 'code=$(($code + $?)); return $code' ERR
+
+  # get the header, compression is handled properly
+  h="`Mes_Read_File  -s --head 250 $1`"
+
+  # exclude comments from testing
+  [ -z "`echo "$h" | grep -v "^#"`" ] && return 0
+
+  #
+  # Sander or PMEMD output
+  #
+  if [[ `Mes_ManVar h --get 2` =~ Amber" "[0-9]+" "SANDER ]]; then
+    #
+    # check if the file is complete, warn if not
+    #
+    if ! ( Mes_ManVar  h --check "4\\. RESULTS" && \
+         [ `Mes_Read_File  -s --tail 100 $1 | grep -c "5\\. TIMINGS"` -eq 1 ] ); then
+      Mes_Warnng "The sander output: '$1' is not complete."
+    fi
+
+    #
+    # output information about the file
+    #+  filename
+    #+  type: MD Minimisation
+    #+  system name
+    #+  ntb
+    #+  nstlim
+    #+  integration step
+    #+  ntt
+    #+  simulation lentgh
+    #
+    printf "%s" $1
+
+    echo "$h" | sed -n '
+      /CONTROL DATA FOR THE RUN/, /ATOMIC COORDINATES AND VELOCITIES/ { /^imin = 0/ { a\MD
+                                                                                    }
+                                                                        /^imin = 1/ { a\Minimisation
+                                                                                    }
+                                                                      }
+      ' | \
+        \
+        Mes_Printf " %s"
+
+    # get the info and use only 4 first values
+    echo "$h" | sed -n '
+      # the system name
+      / PARM: / { s/^.*: //
+                  s/^.*\///
+                  s/\.[^.]\+$//
+                  p }
+      # ntb
+      # nstlim
+      # integration step
+      /CONTROL DATA FOR THE RUN/, /ATOMIC COORDINATES AND VELOCITIES/ { / ntb = / { s/.* ntb = \([.0-9]\+\).*/\1/
+                                                                                    p }
+                                                                        /nstlim = / { s/.*nstlim = \([.0-9]\+\).*/\1/
+                                                                                    p }
+                                                                        / dt = / { s/.* dt = \([.0-9]\+\).*/\1/
+                                                                                   p }
+                                                                      }
+      ' | \
+        \
+        head -n4 | \
+          \
+          Mes_Printf " %s"
+
+    # ntt
+    ntt=`echo "$h" | sed -n '
+           /CONTROL DATA FOR THE RUN/, /ATOMIC COORDINATES AND VELOCITIES/ { /Langevin dynamics temperature regulation/ { a3
+                                                                                                                        }
+                                                                             /Berendsen (weak-coupling) temperature regulation/ { a1
+                                                                                                                                }
+                                                                           }'`
+    [ -z "$ntt" ] && ntt=0
+    printf " %s" $ntt
+
+    # simulation lentgh
+    Mes_Read_File  -s $1 | sed -n '
+      /^A V E R A G E S/, +1 { /TIME(PS) = / { s/.* TIME(PS) = \([.0-9]\+\) .*/\1/
+                                               h }
+                             }
+      $ { x
+          p }
+      ' | \
+        \
+        Mes_Printf " %s"
+
+    echo
+
+
+  #
+  # check a data file
+  #
+  elif [ `Mes_Read_File -s -v --regex "^ *#"  $1 | sed 's/[-0-9.]\+//g' | wc -w` -eq 0 ]; then
+    echo "$1 data"
+
+
+  else
+    Mes_Warnng "An unknown file type: '$1'."
+  fi
+
+  trap - ERR
+  Mes_Msg_Gag --off
+  return $code
+}
+
+
+
+
+Mes_Plot_Compile_MD_Info() {
+  # description: process information from mes_plot_info
+  # arguments: none
+  # return values:
+  local fn=Mes_Plot_Compile_MD_Info    # function name
+
+  # local variables
+  local code=0    # return value
+  local stdin    # stdin
+  local ntb=()    # array holds all ntb values taken from amber formated header
+  local ntt=()    # array holds all ntt values taken from user input
+  local id    # index in ntb, ntt
+  local e=()
+  local end    # time when the simulation ended
+  local start    # time when the simulation started
+  local time    # time simulated
+  local digits    # number of digits
+
+  Mes_Msg_Gag --on
+  trap 'code=$(($code + $?))' ERR
+  #trap 'code=$(($code + $?)); return $code' ERR
+
+  stdin="`cat`"
+
+  #
+  # decide on the ensembles used
+  #
+  ntb=( `echo "$stdin" | cut -d" " -f4` )
+  ntt=( `echo "$stdin" | cut -d" " -f7` )
+
+  for id in ${!ntb[@]}; do
+    if [ ${ntb[$id]} -eq 2 ]; then
+      e[$id]=NP
+    elif [ ${ntb[$id]} -eq 1 ]; then
+      e[$id]=NV
+    else
+      e[$id]=non-periodic
+      continue
+    fi
+
+    if [ ${ntt[$id]} -gt 0 ]; then
+      e[$id]=${e[$id]}T
+    else
+      e[$id]=${e[$id]}E
+    fi
+  done
+
+  #
+  # calculate the simulation length
+  #
+  end=`echo "$stdin" | cut -d" " -f8 | sort -n | tail -n1 | Mes_Printf "%.0f"`
+  time=`echo "$stdin" | cut -d" " -f5,6 | Mes_Printf --ws "%s * %s + " | sed 's/ *+ *$/\n/' | bc | Mes_Printf "%.0f"`
+  start=$(($end - $time))
+  digits=${mes_plot_digits:-`echo $end | wc -L`}
+
+
+  # PRINT OUT ###################################################
+  # print out first 3 entries
+  #+the extra space in the end is used at ensemble print-out
+  Mes_ManVar  stdin --ws -f "%s %s %s" --get 1
+
+  # print the data file basename
+  if [ "$mes_plot_bn" = from_PRMTOP ]; then
+    printf " %s-%0${digits}d-%0${digits}dps"  `Mes_ManVar  stdin --ws -f "%s" --get 3`  ${start} ${end}
+
+  elif [ -n "$mes_plot_bn" ]; then
+    if [ -n "$mes_plot_fid" ]; then
+      printf " %s"  ${mes_plot_bn}_${mes_plot_fid}
+    else
+      printf " %s"  ${mes_plot_bn}
+    fi
+  else
+    Mes_ManVar  stdin --ws -f "%s" --get 1 | sed 's:^.*/::; s/\..*$//'
+  fi
+
+  # output ensembles
+  Mes_ManVar  e -u --get 1,\$ | Mes_Printf "%s," | sed 's/,$/\n/' | Mes_Printf " %s"
+
+  # calculate the timestep
+  echo "$stdin" | cut -d" " -f6 | sort -un | sed 's/.*/& * 1000/' | bc | Mes_Printf "%.0f," | sed 's/,$/\n/' | Mes_Printf " %s"
+
+  printf " %s" $time $start $end
+
+  trap - ERR
+  Mes_Msg_Gag --off
+  return $code
+}
+
+
+
+
+Mes_Plot_Extract_Sander_Out() {
+  # description: extract MD or minimisation related quantities from a
+  #+             Sander/PMEMD output file
+  # arguments: none
+  # return values:
+  local fn=Mes_Plot_Extract_Sander_Out    # function name
+
+  # local variables
+  local code=0    # return value
+
+  Mes_Msg_Gag --on
+  trap 'code=$(($code + $?))' ERR
+  #trap 'code=$(($code + $?)); return $code' ERR
+
+  # print the header
+  printf "%s\n" "# ${info[1]} of ${info[2]}" \
+                "# date:         `date -R`"
+
+  [ ${info[1]} = MD ] && \
+    \
+    printf "%s\n" "# timestep:     ${info[5]}fs" \
+                  "# ensemble:     ${info[4]}"
+
+  printf "%s\n" "# step:         $mes_plot_step" \
+                "#" \
+
+  # formating
+  if [ ${info[1]} = MD ]; then
+    printf "%1s%13s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s\n" \
+      \
+      \# $mes_plot_md_cols
+
+  else
+    printf "%1s%13s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s\n" \
+      \
+      \# $mes_plot_min_cols
+  fi
+
+
+  # printout quantities and compute averages
+  #
+  sed 's/[*]\{13\}/99999999.9999/g' | \
+    \
+    awk -v step=$mes_plot_step \
+        -v imin=`[ ${info[1]} = MD ] && echo 0 || echo 1`  '
+
+    BEGIN {
+      # control variables
+      sec_header = 0       # indicates, that the program is currently processing the header section
+      sec_body = 0         #                                                         body
+      sec_avrgs = 0        #                                                         final averages
+      sec_rmsf = 0         #                                                         final fluctuations
+      count = 0            # count of processed blocks in Sander output
+      write = 0            # variable determining if the unusual variables should be written
+
+      dt = 0.001           # default timestep in ps
+      nstlim = 0           # current number of steps in the simulation
+      total_time = 0       # total time length of the simulation in ps
+
+      # unusual quantities
+      dvdl = 0
+      volume = 0
+      density = 0
+      sgft = 0
+      dvdl_sum = 0
+      volume_sum = 0
+      density_sum = 0
+      sgft_sum = 0
+      dvdl_fluct_sum = 0
+      volume_fluct_sum = 0
+      density_fluct_sum = 0
+      sgft_fluct_sum = 0
+    }
+
+    ################################################################################
+    # switches
+    ################################################################################
+
+    # control variables for header
+    /^1\. RESOURCE/ {
+      sec_header = 1
+      sec_body = 0
+    }
+
+    # MD - control variable for averages
+    /^A V E R A G E S/ {
+      sec_body = 0
+
+      # check that this is the long time average
+      # extract the number steps on this line
+      ntave=$13
+      if (ntave == nstlim)
+        sec_avrgs = 1 
+    }
+
+    # MD - control variable for RMS fluctuations
+    /^R M S F L U C T/ {
+      sec_body = 0
+
+      if (ntave == nstlim)
+        sec_rmsf = 1
+    }
+
+    # MD - avoid data collecting in the DVDL section
+    /^DV\/DL,/ { sec_body = 0 }
+
+    # switch off the control variables, when the end of the section is encountered
+    /^4\. RESULTS/ { sec_header = 0 }
+
+    /^------------/ {
+      sec_avrgs = 0
+      sec_rmsf = 0
+      sec_body = 1
+    }
+
+    ################################################################################
+    # collecting values
+    ################################################################################
+
+    # obtain the total number of step in MD
+    /^nstlim =/ {
+      if (sec_header == 1) {
+        nstlim = substr($3,1,length($3)-1)
+      }
+    }
+
+    # get the timestep and calculate total time
+    /^t =/ {
+      if (sec_header == 1) {
+        dt = substr($6,1,length($6)-1)
+        total_time += nstlim * dt
+      }
+    }
+
+    # MIN - extract step, energy, rms, gmax
+    /^[0-9]+ / {
+      if (sec_body == 1 && write == 1) {
+        printf "%14.4f %14.4f %14.4f %14.4f", $1, $2, $3, $4
+      }
+    }
+
+    # MD
+    /^NSTEP/ {
+      if (sec_body == 1) {
+        count++
+        if (count % step == 0)
+          write = 1
+        else
+          write = 0
+
+        # start a new line
+        if (write == 1) {
+          if (imin == 0)
+            printf "%14.4f %14.4f %14.4f", $6, $9, $12
+          else
+            printf "\n"
+        }
+      }
+      if (sec_avrgs == 1) {
+        temp_sum += $9 * nstlim * dt
+        press_sum += $12 * nstlim * dt
+      }
+      if (sec_rmsf == 1) {
+        temp_fluct_sum += $9 ^ 2 * nstlim * dt
+        press_fluct_sum += $12 ^ 2 * nstlim * dt
+      }
+    }
+
+    /^Etot/ {
+      if (sec_body == 1 && write == 1) {
+        printf " %14.4f %14.4f %14.4f", $3, $6, $9
+      }
+      if (sec_avrgs == 1) {
+        etot_sum += $3 * nstlim * dt
+        ektot_sum += $6 * nstlim * dt
+        eptot_sum += $9 * nstlim * dt
+      }
+      if (sec_rmsf == 1) {
+        etot_fluct_sum += $3 ^2 * nstlim * dt
+        ektot_fluct_sum += $6 ^2 * nstlim * dt
+        eptot_fluct_sum += $9 ^2 * nstlim * dt
+      }
+    }
+
+    /^BOND/ {
+      if (sec_body == 1 && write == 1) {
+        printf " %14.4f %14.4f %14.4f", $3, $6, $9
+      }
+      if (sec_avrgs == 1) {
+        bond_sum += $3 * nstlim * dt
+        angle_sum += $6 * nstlim * dt
+        dihed_sum += $9 * nstlim * dt
+      }
+      if (sec_rmsf == 1) {
+        bond_fluct_sum += $3 ^2 * nstlim * dt
+        angle_fluct_sum += $6 ^2 * nstlim * dt
+        dihed_fluct_sum += $9 ^2 * nstlim * dt
+      }
+    }
+
+    # MIN
+    /^VDWAALS/ {
+      if (sec_body == 1 && write == 1) {
+        printf " %14.4f %14.4f %14.4f", $3, $6, $9
+      }
+    }
+
+    /^1-4 NB/ {
+      if (sec_body == 1 && write == 1) {
+        printf " %14.4f %14.4f %14.4f", $4, $8, $11
+      }
+      if (sec_avrgs == 1) {
+        wdw14_sum += $4 * nstlim * dt
+        eel14_sum += $8 * nstlim * dt
+        wdwaals_sum += $11 * nstlim * dt
+      }
+      if (sec_rmsf == 1) {
+        wdw14_fluct_sum += $4 ^2 * nstlim * dt
+        eel14_fluct_sum += $8 ^2 * nstlim * dt
+        wdwaals_fluct_sum += $11 ^2 * nstlim * dt
+      }
+    }
+
+    # MIN
+    /^1-4 VDW/ {
+      if (sec_body == 1 && write == 1) {
+        printf " %14.4f %14.4f %14.4f", $4, $8, $11
+      }
+    }
+
+    /^EELEC/ {
+      if (sec_body == 1 && write == 1) {
+        printf " %14.4f %14.4f", $3, $9
+      }
+      if (sec_avrgs == 1) {
+        eelec_sum += $3 * nstlim * dt
+        restraint_sum += $9 * nstlim * dt
+      }
+      if (sec_rmsf == 1) {
+        eelec_fluct_sum += $3 ^2 * nstlim * dt
+        restraint_fluct_sum += $9 ^2 * nstlim * dt
+      }
+    }
+
+    /^DV\/DL / {
+      if (sec_body == 1) {
+        dvdl = $3
+      }
+      if (sec_avrgs == 1) {
+        dvdl_sum += $3 * nstlim * dt
+      }
+      if (sec_rmsf == 1) {
+        dvdl_fluct_sum += $3 ^2 * nstlim * dt
+      }
+    }
+
+    /^EKCMT/ {
+      if (sec_body == 1) {
+        volume = $9
+      }
+      if (sec_avrgs == 1) {
+        volume_sum += $9 * nstlim * dt
+      }
+      if (sec_rmsf == 1) {
+        volume_fluct_sum += $9 ^2 * nstlim * dt
+      }
+    }
+
+    /^Density/ {
+      if (sec_body == 1) {
+        density = $3
+      }
+      if (sec_avrgs == 1) {
+        density_sum += $3 * nstlim * dt
+      }
+      if (sec_rmsf == 1) {
+        density_fluct_sum += $3 ^2 * nstlim * dt
+      }
+    }
+
+    /^SGFT/ {
+      if (sec_body == 1) {
+        sgft = $2
+      }
+      if (sec_avrgs == 1) {
+        sgft_sum += $2 * nstlim * dt
+      }
+      if (sec_rmsf == 1) {
+        sgft_fluct_sum += $2 ^2 * nstlim * dt
+      }
+    }
+
+    /^------------/ {
+      if (imin == 0 && write == 1) {
+        # complete the output, write unusual quantities
+        printf " %14.4f %14.4f %14.4f %14.4f\n", volume, density, dvdl, sgft
+        sgft = 0
+        dvdl = 0
+        write = 0
+      }
+    }
+
+    # MIN - do not include the last value
+    /^FINAL RESULTS/ { sec_body = 0 }
+
+    END {
+      if (imin == 0) {
+        print  "#"
+        print  "#~ Total averages ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        printf "#  Avrg. Temp:      %14.4f %14.4f\n", temp_sum / total_time, sqrt( temp_fluct_sum / total_time )
+        printf "#  Avrg. Press:     %14.4f %14.4f\n", press_sum / total_time, sqrt( press_fluct_sum / total_time )
+        printf "#  Avrg. Etot:      %14.4f %14.4f\n", etot_sum / total_time, sqrt( etot_fluct_sum / total_time )
+        printf "#  Avrg. Ektot:     %14.4f %14.4f\n", ektot_sum / total_time, sqrt( ektot_fluct_sum / total_time )
+        printf "#  Avrg. Eptot:     %14.4f %14.4f\n", eptot_sum / total_time, sqrt( eptot_fluct_sum / total_time )
+        printf "#  Avrg. Bond:      %14.4f %14.4f\n", bond_sum / total_time, sqrt( bond_fluct_sum / total_time )
+        printf "#  Avrg. Angle:     %14.4f %14.4f\n", angle_sum / total_time, sqrt( angle_fluct_sum / total_time )
+        printf "#  Avrg. Dihed:     %14.4f %14.4f\n", dihed_sum / total_time, sqrt( dihed_fluct_sum / total_time )
+        printf "#  Avrg. WdW14:     %14.4f %14.4f\n", wdw14_sum / total_time, sqrt( wdw14_fluct_sum / total_time )
+        printf "#  Avrg. Eel14:     %14.4f %14.4f\n", eel14_sum / total_time, sqrt( eel14_fluct_sum / total_time )
+        printf "#  Avrg. WdWaals:   %14.4f %14.4f\n", wdwaals_sum / total_time, sqrt( wdwaals_fluct_sum / total_time )
+        printf "#  Avrg. Eelec:     %14.4f %14.4f\n", eelec_sum / total_time, sqrt( eelec_fluct_sum / total_time )
+        printf "#  Avrg. Restraint: %14.4f %14.4f\n", restraint_sum / total_time, sqrt( restraint_fluct_sum / total_time )
+        printf "#  Avrg. Volume:    %14.4f %14.4f\n", volume_sum / total_time, sqrt( volume_fluct_sum / total_time )
+        printf "#  Avrg. Density:   %14.4f %14.4f\n", density_sum / total_time, sqrt( density_fluct_sum / total_time )
+        printf "#  Avrg. DV/DL:     %14.4f %14.4f\n", dvdl_sum / total_time, sqrt( dvdl_fluct_sum / total_time )
+        printf "#  Avrg. Sgft:      %14.4f %14.4f\n", sgft_sum / total_time, sqrt( sgft_fluct_sum / total_time )
+      }
+    }'
+
+  trap - ERR
+  Mes_Msg_Gag --off
+  return $code
+}
+
+
+
+
+Mes_Plot_Data() {
+  # description: plot a data file using gnuplot
+  # arguments: FILE
+  # return values:
+  local fn=Mes_Plot_Data    # function name
+
+  # argument checks
+  [ $# -eq 0 ] && Mes_Errr "Input a data file."
+
+  # local variables
+  local code=0    # return value
+  local script=false    # output the gnuplot script
+  local bn=""    # basename
+  local mes_shift_args    # the number of arguments to skip after option parsing
+
+  local labels=()    # axis labels for the x column and data columns
+  local c=""    # columns number, index for the labels array
+  local title=""
+  local avrg_rmsf=""    # averages and RMS fluctuations from Sander output files 
+  local legends=""    # legend for each data set
+  local tmp
+
+  trap 'code=$(($code + $?))' ERR
+  #trap 'code=$(($code + $?)); return $code' ERR
+
+  Mes_Msg 2 "Parsing cmdline options."
+  Mes_Parse_Cmdline_Options '--script->script=true
+                             --bn->bn
+                             ' "$@" 
+  shift $mes_shift_args
+
+  # try to derive the basename from the data filename
+  [ -z "$bn" ] && bn=${1%.*}
+
+  #
+  # gather all information for plotting
+  #
+  if [ ${info[1]} = MD ]; then
+    mes_plot_x_col=1
+    mes_plot_d_col="`seq 2 \`echo $mes_plot_md_cols | wc -w\``"
+    labels=( 0 $mes_plot_md_cols )
+    title="${info[1]} of ${info[2]}; timestep ${info[5]}fs; ${info[4]} ensemble"
+
+    # get the averages and rmsfs
+    Mes_ManVar  avrg_rmsf -i --add \
+      \
+      < <( echo 0
+           Mes_Read_File -s --regex "^#  Avrg. "  $1 | \
+             \
+             cut -d" " -f4,5 )
+
+    # assemble the data legends
+    Mes_ManVar  legends -i --add \
+      \
+      < <( echo 0
+           for c in $mes_plot_d_col; do
+             printf "%s, " ${labels[$c]}
+             Mes_ManVar  avrg_rmsf  --get $c | Mes_Printf --ws "avrg %s, rmsf %s"
+             printf "\n"
+           done )
+
+
+  elif [ ${info[1]} = Minimisation ]; then
+    mes_plot_x_col=1
+    mes_plot_d_col="`seq 2 \`echo $mes_plot_min_cols | wc -w\``"
+    labels=( 0 $mes_plot_min_cols )
+    title="${info[1]} of ${info[2]}"
+
+
+  else
+    if [[ $mes_plot_x_col =~ = ]]; then
+      labels[`printf "%.0f" ${mes_plot_x_col%%=*}`]=${mes_plot_x_col#*=}
+    else
+      labels[`printf "%.0f" ${mes_plot_x_col%%=*}`]=x_label
+    fi
+
+    #
+    # detect data columns
+    #
+    if [ -z "$mes_plot_d_col" ]; then
+      # count a sample line
+      tmp="`grep -m1 "^ *[-0-9.]\+"  $1 | wc -w`"
+
+      # delete the x-col line and that's it :-)
+      mes_plot_d_col="`seq 1 $tmp | grep -v "^$mes_plot_x_col\$"`"
+    fi
+
+    for c in $mes_plot_x_col $mes_plot_d_col; do
+      if [[ $c =~ = ]]; then
+        labels[`printf "%.0f" ${c%%=*}`]=${c#*=}
+      else
+        labels[`printf "%.0f" $c`]=label
+      fi
+    done
+    mes_plot_x_col=`printf "%.0f" ${mes_plot_x_col%%=*}`
+    mes_plot_d_col="`echo $mes_plot_d_col | sed 's/=[^ ]\+//g'`"
+
+    title="Data from $1"
+  fi
+
+
+  #
+  # print the gnuplot input file
+  #
+  { printf "%s\n" "set terminal postscript colour \"Monospace\" 12" \
+                  "set output \"$bn.ps\"" \
+                  "set grid ytics"
+
+    if $mes_plot_merge && \
+       ! [[ ${info[1]} =~ MD|Minimisation ]]; then
+
+      echo "set title \"$title\" font \"Monospace,14\""
+      echo "set xlabel \"${labels[$mes_plot_x_col]}\""
+      echo "set ylabel \"all merged together\""
+      printf "%s " plot
+
+      for c in $mes_plot_d_col; do
+        if [ -z "$legends" ]; then
+          printf "%s, "   "plot \"$1\" using ${mes_plot_x_col}:${c} with linespoints pt 13"
+        else
+          printf "%s, "   "plot \"$1\" using ${mes_plot_x_col}:${c} with linespoints pt 13 title \"`Mes_ManVar  legends  --get $c`\""
+        fi
+      done | \
+        \
+        sed 's/, $/\n/'
+
+    else
+
+      for c in $mes_plot_d_col; do
+        echo "set title \"$title\" font \"Monospace,14\""
+        echo "set xlabel \"${labels[$mes_plot_x_col]}\""
+        echo "set ylabel \"${labels[$c]}\""
+        if [ -z "$legends" ]; then
+          echo "plot \"$1\" using ${mes_plot_x_col}:${c} with linespoints pt 13"
+        else
+          echo "plot \"$1\" using ${mes_plot_x_col}:${c} with linespoints pt 13 title \"`Mes_ManVar  legends  --get $c`\""
+        fi
+      done
+
+    fi
+  } | \
+    \
+    if $script; then
+      tee $bn.gnuplot
+    else
+      cat
+    fi | \
+      \
+      if [ ${MES_VERBOSITY:-0} -ge 2 ]; then
+        gnuplot -
+      else
+        gnuplot - &> /dev/null
+      fi
+
+  trap - ERR
+  return $code
+}
+
+
+
+
+Mes_Plot() {
+  # description: glue all other functions together
+  # arguments: none
+  # return values:
+  local fn=Mes_Plot    # function name
+
+  # local variables
+  local code=0    # return value
+  local info=()    # processed file information
+  local script    # flag
+  local tmp_file=`mktemp`
+
+  trap 'code=$(($code + $?))' ERR
+  #trap 'code=$(($code + $?)); return $code' ERR
+
+  #
+  # process extracted headers
+  #
+  if [ -n "$mes_plot_fid" ]; then
+    if [ `Mes_ManVar  mes_plot_info[$mes_plot_fid] --ws -f "%s" --get 2` = MD ]; then
+      info=( `echo "${mes_plot_info[$mes_plot_fid]}" | Mes_Plot_Compile_MD_Info` )
+
+    # do not process data file and minimisation file information
+    #
+    elif [ `Mes_ManVar  mes_plot_info[$mes_plot_fid] --ws -f "%s" --get 2` = Minimisation ]; then
+      info=( `echo "${mes_plot_info[$mes_plot_fid]}" | cut -d" " -f1-3` )
+
+      if [ "$mes_plot_bn" = from_PRMTOP ]; then
+        # supply the parm name as the data file basename
+        info[3]=${info[2]}
+
+      elif [ -n "$mes_plot_bn" ]; then
+        info[3]=${mes_plot_bn}_${mes_plot_fid}
+
+      else
+        info[3]="`echo ${info[0]} | sed 's:^.*/::; s/\..*$//'`"
+      fi
+
+    else
+      info=( `echo "${mes_plot_info[$mes_plot_fid]}" | cut -d" " -f1-2` )
+
+      if [ -n "$mes_plot_bn" ] && [ "$mes_plot_bn" != from_PRMTOP ]; then
+        info[3]=${mes_plot_bn}_${mes_plot_fid}
+
+      else
+        info[3]="`echo ${info[0]} | sed "s:^.*/::; s/\..*\$//; s/\$/_${mes_plot_fid}/"`"
+      fi
+    fi
+
+  else
+    if [ "`echo "${mes_plot_info[@]}" | cut -d" " -f2 | sort -u`" = MD ]; then
+      info=( `Mes_ManVar mes_plot_info --get 1,\$ | Mes_Plot_Compile_MD_Info` )
+
+    # do not process data file infomation
+    #
+    else
+      info=( `echo "${mes_plot_info[0]}" | cut -d" " -f1-2` )
+
+      # we need a new filename to concatenate the data files
+      #
+      if [ -n "$mes_plot_bn" ] && [ "$mes_plot_bn" != from_PRMTOP ]; then
+        info[3]=${mes_plot_bn}_all
+      else
+        info[3]="`echo ${info[0]} | sed 's:^.*/::; s/\..*$//; s/$/_all/'`"
+      fi
+    fi
+  fi
+
+
+  if [ ${info[1]} != data ]; then
+    #
+    # extract data
+    #
+    if [ -n "$mes_plot_fid" ]; then
+      Mes_Read_File  -s  ${mes_plot_info[$mes_plot_fid]%% *}
+    else
+      Mes_Read_File  -s  ${mes_plot_info[@]%% *}
+    fi | \
+      \
+      Mes_Plot_Extract_Sander_Out
+
+  else
+    #
+    # concatenate data files
+    #
+    if [ -n "$mes_plot_fid" ]; then
+      echo ${info[0]}
+    else
+      echo "${mes_plot_info[@]%% *}"
+    fi | \
+      \
+      Mes_Read_File -- -
+
+  fi | \
+    \
+    \
+    if $mes_plot_unify; then
+      tee $tmp_file | grep "^ *[-0-9.]\+" | sort -u -k1,1n
+      grep -v "^ *[-0-9.]\+" $tmp_file
+    else
+      cat
+    fi \
+      \
+      > ${info[3]}.dat
+  
+  rm -f $tmp_file
+
+
+  $mes_plot_script && script=--script || script=""
+  #
+  # plot the data
+  #
+  Mes_Plot_Data  $script  --bn ${info[3]}  ${info[3]}.dat
+
+  trap - ERR
+  return $code
+}
+
+
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~ System environment check ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Mes_Test_Bash_Version
+
+# input any commands to test as arguments
+Mes_Test_Software  sed  awk  gnuplot
+
+
+
+
+################################################################################
+# Main program
+################################################################################
+
+# set a trap to catch error exit codes
+#trap  'mes_retval=$(( $mes_retval + $? ))'  ERR
+trap  'mes_retval=$(( $mes_retval + $? )); exit $mes_retval'  ERR
+
+
+# parse command line arguments
+Mes_Parse_Cmdline_Arguments  '--help->mes_help=true
+                              -h->mes_help=true
+
+                              --verbosity->MES_VERBOSITY
+                              -v->MES_VERBOSITY=1
+                              -vv->MES_VERBOSITY=2
+
+                              --121->mes_plot_mode=121
+                              --a21->mes_plot_mode=a21
+
+                              --merge->mes_plot_merge=true
+
+                              -x->mes_plot_x_col
+                              --x-col->mes_plot_x_col
+
+                              -d->mes_plot_d_col
+                              --data->mes_plot_d_col
+                              --d-col->mes_plot_d_col
+
+                              --unify->mes_plot_unify=true
+                              --step->mes_plot_step
+                              --digits->mes_plot_digits
+                              --script->mes_plot_script=true
+
+                              --pn->mes_plot_bn=from_PRMTOP
+                              --bn-pn->mes_plot_bn=from_PRMTOP
+                              --fn->mes_plot_bn=""
+                              --bn-fn->mes_plot_bn=""
+                              --bn->mes_plot_bn
+                              ' "$@"
+
+# get help if requested
+$mes_help && Mes_Help
+
+
+Mes_Msg 1 "'$0' started at `date -R`."
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~ Check and convert input data ~~~~~~~~~~~~~~~~~~~~~~~
+
+Mes_Recognise_Stringently "$MES_VERBOSITY" 0-9
+Mes_Recognise_Stringently "${mes_plot_x_col%%=*}" 0-9
+[ -n "$mes_plot_d_col" ] && Mes_Recognise_Stringently "`echo $mes_plot_d_col | sed 's/=[^ ]\+//g'`" " 0-9"
+Mes_Recognise_Stringently "$mes_plot_step" 0-9
+[ -n "$mes_plot_digits" ] && Mes_Recognise_Stringently $mes_plot_digits 0-9
+
+#
+# extract file headers
+#
+for file in $mes_arguments; do
+  mes_plot_info[${#mes_plot_info[@]}]="`Mes_Plot_Examine_File  $file`"
+done
+
+[ -z "$mes_plot_info" ] && Mes_Errr "No files to plot."
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~ Extract data and plot ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+if [ $mes_plot_mode = 121 ]; then
+  Mes_Msg 1 "Mode one 2 one."
+
+  for mes_plot_fid in ${!mes_plot_info[@]}; do
+    Mes_Plot
+  done
+
+elif [ $mes_plot_mode = a21 ]; then
+  Mes_Msg 1 "Mode all 2 one."
+
+  # exclude minimisation output files and mixed sets
+  #
+  [ "`echo "${mes_plot_info[@]}" | cut -d" " -f2 | sort -u`" != MD ] && \
+    \
+    [ "`echo "${mes_plot_info[@]}" | cut -d" " -f2 | sort -u`" != data ] && \
+      \
+      Mes_Errr "In all 2 one mode, all files have to be of a type either 'MD' or 'data'."
+
+  Mes_Plot
+fi
+
+
+Mes_Msg 1 "'$0' done at `date -R`."
+
+exit $mes_retval
+
+# AND THAT'S IT, the end of the script

@@ -1,0 +1,25 @@
+#
+# relax01
+#
+# geometry optimization of all solvent atoms, protein is restrained
+#
+
+&cntrl
+ imin=1,
+ maxcyc=5000,
+ ncyc=3000,
+
+ ntpr=10,
+
+ ntf=1,
+ ntb=1,
+ cut=9.0,
+ ntr=1,
+ ntc=1,
+
+&end
+Hold the system fixed by restraints
+ 50.0
+RES 1 366
+END
+END

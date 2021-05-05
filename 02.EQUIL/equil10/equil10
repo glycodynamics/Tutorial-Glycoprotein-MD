@@ -1,0 +1,5 @@
+#!/bin/bash
+
+pmemd.cuda -O -i relax10.in -p ../$PEQUI_TOP -c ../relax09/relax09.rst7 -o relax10.out -r relax10.rst7 -x relax10.btraj
+
+
