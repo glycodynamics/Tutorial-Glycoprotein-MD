@@ -164,26 +164,18 @@ For the the purpose of this tutorial, we will be runing a short 1 nanosecond MD 
  ntp=1, pres0=1.0, taup=1.2,
  &end
 ```
+```
 imin=2 : no minization
-
 nstlim=500000, dt=0.002: Run 500000 steps with 2fs time step
-
 ntpr=5000, ntwx=5000, ntwr=5000: Write energies, trajectory and restart file every 5000 steps
-
 ioutfm=0 : Write trajectory in Amber trajectory format. Use 1 for binary format
-
 ntf=1, : Force calculation, complete interaction is calculated (default)
-
 ntb=2, : Periodic boundaries are imposed, constant pressure
-
 cut=9.0, : Non-bonded interaction cutoff distance
-
 ntc=2, : Bonds involving hydrogen are constrained
-
 temp0=300.0, ntt=3, gamma_ln=2.0: Temprature langevin thermostat to maintain a temprature of 300 K 
-
- ntp=1, pres0=1.0, taup=1.2: Pressure control 
- 
+ntp=1, pres0=1.0, taup=1.2: Pressure control 
+ ```
 
 The export CUDA_VISIBLE_DEVICES=0 line tells the computer to run on the GPU designated 0. You will likely have to change this to run on a GPU that is open on your computer. You can see which GPUs are open with this command:
 ```
