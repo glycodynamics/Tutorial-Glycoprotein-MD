@@ -23,13 +23,13 @@ The sander and pmemd programs are capable of doing MD simulations required. AMBE
 
 You will be simulating SPS-40 glycoprotein. Follow these steps to perform MD.
 
-#### 1.Login to Fucose: 
-Use account information provided during the hands-on session to login into fucose computer.
+#### 1. Login to Fucose: 
+Use the account information provided during the hands-on session to login into fucose computer.
 
-#### 1.Download PDB structure:
-Download PDB structure of the SPS-40 from the Protein Data Bank [2PI6] (https://www.rcsb.org/structure/2PI6). This structure contains protein, N-glycan attached to it, crystal waters, and some heteroatoms. We only require coordinates of the protein atoms to create our system for MD simulation. You can use grep to extract the protein part and create a file protein.pdb. However, Glycam-web can read pdb file and it will remove all the heetero atoms itself. 
+#### 1. Download PDB structure:
+Download PDB structure of the SPS-40 from the Protein Data Bank [2PI6] (https://www.rcsb.org/structure/2PI6). This structure contains protein, N-glycan attached to it, crystal waters, and some heteroatoms. We only require the coordinates of the protein atoms to create our system for MD simulation. You can use grep to extract the protein part and create a file protein.pdb. However, Glycam-web can read pdb file and it will remove all the heetero atoms itself. 
 
-#### 2.Add N-Glcyan to protein structure:
+#### 2. Add N-Glcyan to protein structure:
 
 ![image](https://user-images.githubusercontent.com/10772897/116744150-8a5b0280-a9bf-11eb-8be6-2aefd40aa756.png)
 
@@ -47,11 +47,11 @@ Download PDB structure of the SPS-40 from the Protein Data Bank [2PI6] (https://
 
 — Step 3: Click on Options; Choose Solvate Structures to Yes, Choose the shape of the solvent box: Rectangular/Cubic and Size of the solvent buffer: 11 Angstrom → Save and Continue
 
-— Step 3: Download current structure. It will take a couple of minutes to build the requested structure.
+— Step 3: Download the current structure. It will take a couple of minutes to build the requested structure.
 
 — Download glycam.tar.gz into your local computer. 
 
-— Unzip glycam.tar.gz into your local computer and visualize structure_AMBER.pdb file in VMD or PyMOL. Make sure glycan is attached to apropriate Asn and there is no bonds missing.  
+— Unzip glycam.tar.gz into your local computer and visualize structure_AMBER.pdb file in VMD or PyMOL. Make sure glycan is attached to the appropriate Asn and no bonds is missing.  
 
 — Finally you can copy glycam.tar.gz file to ~/tutorial/01.PREP directory in fucose computer. For your convenience, this file has been already copied to this directory.
 
@@ -60,7 +60,7 @@ Connect to focuse compuer:
 ```
 ssh -X guestXX@fucose.pharmacy.olemiss.edu
 ```
-Use the login credentials provided to you. Once conected go to ~/tutorial/01.PREP direcotry, unzip glycam.tar.gz archive and copy structure.parm7 & structure.parm7 files to ~/MD-GLYCOPROTEIN/02.EQUIL directory. These two files are needed to run MD simulation. Use following commands to do these tasks.
+Use the login credentials provided to you. Once connected go to ~/tutorial/01.PREP directory, unzip glycam.tar.gz archive and copy structure.parm7 & structure.parm7 files to ~/MD-GLYCOPROTEIN/02.EQUIL directory. These two files are needed to run the MD simulation. Use the following commands to do these tasks.
 ```
 cd ~/tutorial/01.PREP
 tar -xvf glycam.tar.gz
@@ -73,8 +73,8 @@ Now you are inside the equilibration directory that contains the following files
 equil01 equil03 equil05 equil07 equil09 run-eq-CGpu.sh  structure.rst7
 equil02 equil04 equil06 equil08 equil10 structure.parm7
 ```
-directories equil01 to equil10 contain input files for a 10 step MD equilibration protocol. File run-eq-CGpu.sh has commands to run these 10 steps.
-If your guest ID is an even number, use   CUDA_VISIBLE_DEVICES=0 and if it is an odd number use CUDA_VISIBLE_DEVICES=0
+directories equil01 to equil10 contain input files for a 10-step MD equilibration protocol. File run-eq-CGpu.sh has commands to run these 10 steps.
+If your guest ID is an even number, use   CUDA_VISIBLE_DEVICES=0, and if it is an odd number use CUDA_VISIBLE_DEVICES=0
 Running equilibration: 
 
 ```
@@ -82,7 +82,7 @@ export CUDA_VISIBLE_DEVICES=0
 module load amber/20
 ./eq-CGpu.sh &
 ```
-This calculation may take 20-30 minutes. Therefore try to understand the content of eq-CGpu.sh (see described below) in the mean-time: 
+This calculation may take 20-30 minutes. Therefore try to understand the content of eq-CGpu.sh (see described below) in the meantime: 
 ```
 export pmemd_bin="mpirun -np 12 pmemd.MPI"
 export amber_bin=pmemd.cuda
@@ -136,19 +136,19 @@ $amber_bin -O  -i equil10.in -p ../$PEQUI_TOP -c ../equil09/equil09.rst7 -o equi
 
 ```
 
-Once the equilibration is completed, chnage directory to 03.PROD:
+Once the equilibration is completed, change the directory to 03.PROD:
 ```
 cd ../03.PROD
 ```
 
 
 #### 3. Running MD:
-Now we will use the last frame from the equilibration to start the MD simulation. This equilibrated structure file is inside equil10 and named "equil10.rst7". This file will be used as starting frame of MD simulation. Copy equil10.rst7 and structure.parm7 to 03.PROD directory for runing MD.
+Now we will use the last frame from the equilibration to start the MD simulation. This equilibrated structure file is inside equil10 and named "equil10.rst7". This file will be used as the starting frame of MD simulation. Copy equil10.rst7 and structure.parm7 to 03.PROD directory for running MD.
 ```
 cp ../02.EQUIL/equil10/equil10.rst7 .
 cp ../01.PREP/structure.parm7 .
 ```
-For the the purpose of this tutorial, we will be runing a short 1 nanosecond MD simulation at NPT. These valies have been placed in prod.in file, which is MD paramataer intut file. Production run input file has follwoing values:
+For this tutorial, we will be running a short 1-nanosecond MD simulation at NPT. These values have been placed in prod.in the file, which is MD parameter input file. The production run input file has the following values:
 ```
 # prod.in
 # prod at 300 K, constant pressure- 1ns
@@ -164,6 +164,7 @@ For the the purpose of this tutorial, we will be runing a short 1 nanosecond MD 
  ntp=1, pres0=1.0, taup=1.2,
  &end
 ```
+
 ```
 imin=2 : no minization
 nstlim=500000, dt=0.002: Run 500000 steps with 2fs time step
@@ -173,9 +174,9 @@ ntf=1, : Force calculation, complete interaction is calculated (default)
 ntb=2, : Periodic boundaries are imposed, constant pressure
 cut=9.0, : Non-bonded interaction cutoff distance
 ntc=2, : Bonds involving hydrogen are constrained
-temp0=300.0, ntt=3, gamma_ln=2.0: Temprature langevin thermostat to maintain a temprature of 300 K 
+temp0=300.0, ntt=3, gamma_ln=2.0: Temperature langevin thermostat to maintain a temperature of 300 K 
 ntp=1, pres0=1.0, taup=1.2: Pressure control 
- ```
+```
 
 The export CUDA_VISIBLE_DEVICES=0 line tells the computer to run on the GPU designated 0. You will likely have to change this to run on a GPU that is open on your computer. You can see which GPUs are open with this command:
 ```
@@ -213,7 +214,7 @@ Fri Apr 30 15:55:31 2021
 +-----------------------------------------------------------------------------+
 
 ```
-On this computer, there are two RTX3080 GPUs (0, 1). Their respective availability is shown on the right (GUP-Util). Here, GPUs 0 is 95% utilized, hence unavailable, but GPU 1 is free. So, we want to tell the computer to run our job on GPU 1 by setting CUDA_VISIBLE_DEVICES variable as following:
+On this computer, there are two RTX3080 GPUs (0, 1). Their respective availability is shown on the right (GUP-Util). Here, GPU 0 is 95% utilized, hence unavailable, but GPU 1 is free. So, we want to tell the computer to run our job on GPU 1 by setting CUDA_VISIBLE_DEVICES variable as follows:
 ```
 export CUDA_VISIBLE_DEVICES=1
 ```
@@ -249,7 +250,7 @@ You should see that the percentage of the GPU you specified increased to a perce
 ```
 top
 ```
-This will show you the PID (first column), who is running the job (second column), and what kind of job it is (last column), which should be pmemd.cuda for you. The "top" screen will be automatically updated in real-time. To exit back to the command line, type the "q" key on your keyboard.
+This will show you the PID (first column), who is running the job (second column), and what kind of job it is (last column), which should be pmemd.cuda for you. The "top" screen will be automatically updated in real time. To exit back to the command line, type the "q" key on your keyboard.
 
 If you need to kill your job for some reason (like you ran it on a busy GPU), then you can kill the job by typing:
 ```
@@ -293,16 +294,16 @@ Running this script will also make a file called "nohup.out." This is where all 
 
 ```
 [sushil@idose 03.PROD]$ cat nohup.out 
-Note: The following floating-point exceptions are signalling: IEEE_UNDERFLOW_FLAG IEEE_DENORMAL
+Note: The following floating-point exceptions are signaling: IEEE_UNDERFLOW_FLAG IEEE_DENORMAL
 ```
 
-The only warning is expected, and should not themselves be of concern. Underflows of "IEEE_UNDERFLOW_FLAG IEEE_DENORMAL" is the result of an expression that exceeds the precision of the variable being assigned the value. The underflow error is typically inconsequential and should have no impact on the results of the simulation. It can be ignored if pmemd.cuda tests did not show anything of concern shows up about the GPUs
+The only warning is expected, and should not themselves be of concern. Underflows of "IEEE_UNDERFLOW_FLAG IEEE_DENORMAL" are the result of an expression that exceeds the precision of the variable being assigned the value. The underflow error is typically inconsequential and should have no impact on the results of the simulation. It can be ignored if pmemd.cuda tests did not show anything of concern about the GPUs
 
-Wait for the job to finish. It should take around 30 minutes hours (see mdinfo file to find out how much time it needs to complete). 
+Wait for the job to finish. It should take around 30 minutes or an hour (see mdinfo file to find out how much time it needs to complete). 
 
 #### 6. Postprocess and analyze the trajectory:
 
-Run cpptraj to postprocess trajecotry file (prod01.traj).
+Run cpptraj to post process trajectory file (prod01.traj).
 
 Now copy all the data back to your local machine using ssh (following) or WinSCP. If you have a Mac or Linux, open the terminal and run the following command to copy the data from the source (guestXX@fucose.pharmacy.olemiss.edu:~/*) to your desktop.
 ```
@@ -321,13 +322,13 @@ scp -r guestXX@fucose.pharmacy.olemiss.edu:~/* ~/Desktop/
 
 — Load a file containing a glycan into VMD (structure.parm7)
 
-— Load trajectory file (prod01.traj) by selecting "Amber trajecotry file with periodic box)
+— Load trajectory file (prod01.traj) by selecting "Amber trajectory file with periodic box)
 
-— Go to graphics > representation > and change the representation of molecule as you wish to.
+— Go to graphics > representation > and change the representation of the molecule as you wish to.
 
-— Play MD and visualize trajectory
+— Play MD and visualize the trajectory
 
-— Ask for help and an instructure can help you in doing all this in VMD.
+— Ask for help and an instructor can help you in doing all this in VMD.
 
 ##### SNFG Visualization:
 
